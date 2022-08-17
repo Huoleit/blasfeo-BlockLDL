@@ -2,6 +2,8 @@
 
 #include <blasfeo.h>
 
+// #define BDLDL_USE_SINGLE_PRECISION
+
 #if defined(BDLDL_USE_SINGLE_PRECISION)
 typedef float ldl_float;
 typedef struct blasfeo_smat ldl_matrix;
@@ -30,6 +32,9 @@ typedef struct blasfeo_svec ldl_vector;
 #define GESC blasfeo_sgesc
 #define GEAD blasfeo_sgead
 
+#define TRSM_LLNN blasfeo_strsm_llnn
+#define TRSM_LLTN blasfeo_strsm_lltn
+
 #else
 typedef double ldl_float;
 typedef struct blasfeo_dmat ldl_matrix;
@@ -56,5 +61,8 @@ typedef struct blasfeo_dvec ldl_vector;
 #define GEMM_NN blasfeo_dgemm_nn
 #define GESC blasfeo_dgesc
 #define GEAD blasfeo_dgead
+
+#define TRSM_LLNN blasfeo_dtrsm_llnn
+#define TRSM_LLTN blasfeo_dtrsm_lltn
 
 #endif

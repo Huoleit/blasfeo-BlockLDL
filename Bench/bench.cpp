@@ -1,8 +1,9 @@
+#include <benchmark/benchmark.h>
 #include <blasfeo.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <benchmark/benchmark.h>
+#include "bdldl.h"
 
 static void BM_chole(benchmark::State &state) {
   int ii;
@@ -44,8 +45,8 @@ static void BM_chole(benchmark::State &state) {
   ptr_memory_strmat += sL.memsize;
 
   struct blasfeo_dmat sD;
-	blasfeo_create_dmat(n, n, &sD, ptr_memory_strmat);
-	ptr_memory_strmat += sD.memsize;
+  blasfeo_create_dmat(n, n, &sD, ptr_memory_strmat);
+  ptr_memory_strmat += sD.memsize;
 
   blasfeo_dgemm_nt(n, n, n, 1.0, &sA, 0, 0, &sA, 0, 0, 0, &sB, 0, 0, &sD, 0, 0);
   // printf("\nA*A' = \n");
@@ -61,8 +62,15 @@ static void BM_chole(benchmark::State &state) {
   d_free(B);
   d_free(D);
   v_free_align(memory_strmat);
-
 }
 
-BENCHMARK(BM_chole);
+static void BM_bdldl(benchmark::State &state) {
+  initOCPData();
+  for (auto _ : state) {
+    factorizeOCPData();
+  }
+  freeOCPData();
+}
 
+// BENCHMARK(BM_chole);
+BENCHMARK(BM_bdldl);

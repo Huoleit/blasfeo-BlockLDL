@@ -3,16 +3,24 @@
 
 #include "subroutines.h"
 
-#define NX 4
-#define NU 2
+#define NX 8
+#define NU 4
 #define NG 1
-#define N 2
+#define N 50
 
 int nx[N + 1], nu[N + 1], ng[N + 1];
-ldl_float A[NX * NX] = {1, 0, 0, 0, 0, 1, 0, 0, 0.1, 0, 1, 0, 0, 0.1, 0, 1};
-ldl_float B[NX * NU] = {0.005, 0, 0.1, 0, 0, 0.005, 0, 0.1};
-ldl_float Q[NX * NX] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1};
-ldl_float R[NU * NU] = {0.3, 0, 0, 0.3};
+ldl_float A[NX * NX] = {1,   0, 0,   0, 0, 0, 0, 0, 0, 1,   0, 0,   0, 0, 0, 0,
+                        0,   0, 1,   0, 0, 0, 0, 0, 0, 0,   0, 1,   0, 0, 0, 0,
+                        0.1, 0, 0,   0, 1, 0, 0, 0, 0, 0.1, 0, 0,   0, 1, 0, 0,
+                        0,   0, 0.1, 0, 0, 0, 1, 0, 0, 0,   0, 0.1, 0, 0, 0, 1};
+ldl_float B[NX * NU] = {0.005, 0, 0,   0, 0.1, 0,     0, 0,     0, 0.005, 0,
+                        0,     0, 0.1, 0, 0,   0,     0, 0.005, 0, 0,     0,
+                        0.1,   0, 0,   0, 0,   0.005, 0, 0,     0, 0.1};
+ldl_float Q[NX * NX] = {1, 0, 0, 0, 0,   0, 0,   0, 0, 1, 0, 0, 0, 0,   0, 0,
+                        0, 0, 1, 0, 0,   0, 0,   0, 0, 0, 0, 1, 0, 0,   0, 0,
+                        0, 0, 0, 0, 0.1, 0, 0,   0, 0, 0, 0, 0, 0, 0.1, 0, 0,
+                        0, 0, 0, 0, 0,   0, 0.1, 0, 0, 0, 0, 0, 0, 0,   0, 0.1};
+ldl_float R[NU * NU] = {0.3, 0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0.3};
 
 ldl_matrix AA[N], BB[N], QQ[N + 1], RR[N];
 
@@ -22,7 +30,7 @@ ldl_matrix DDInv[3 * N];
 
 ldl_matrix Ix, Iu, tmpLx, tmpLu;
 
-static void initOCPData() {
+void initOCPData() {
   int ii;
 
   for (ii = 0; ii < N + 1; ++ii) {
@@ -160,13 +168,13 @@ void printOCPData() {
 
 // LLTInv <= inv(L)
 void LLTInvNx(ldl_matrix* L, ldl_matrix* LLTInv) {
-  TRSM_RLTN(NX, NX, 1.0, L, 0, 0, &Ix, 0, 0, LLTInv, 0, 0);
-  TRSM_RLNN(NX, NX, 1.0, L, 0, 0, LLTInv, 0, 0, LLTInv, 0, 0);
+  TRSM_LLNN(NX, NX, 1.0, L, 0, 0, &Ix, 0, 0, LLTInv, 0, 0);
+  TRSM_LLTN(NX, NX, 1.0, L, 0, 0, LLTInv, 0, 0, LLTInv, 0, 0);
 }
 
 void LLTInvNu(ldl_matrix* L, ldl_matrix* LLTInv) {
-  TRSM_RLTN(NU, NU, 1.0, L, 0, 0, &Iu, 0, 0, LLTInv, 0, 0);
-  TRSM_RLNN(NU, NU, 1.0, L, 0, 0, LLTInv, 0, 0, LLTInv, 0, 0);
+  TRSM_LLNN(NU, NU, 1.0, L, 0, 0, &Iu, 0, 0, LLTInv, 0, 0);
+  TRSM_LLTN(NU, NU, 1.0, L, 0, 0, LLTInv, 0, 0, LLTInv, 0, 0);
 }
 
 void factorizeOCPData() {
@@ -179,11 +187,11 @@ void factorizeOCPData() {
 
     if (k != 0) {
       // L = A*DInv
-      GEMM_NN(nx[k + 1], nx[k], nx[k], 1.0, AA + k, 0, 0, DDInv + k * 3 - 1, 0,
+      GEMM_NT(nx[k + 1], nx[k], nx[k], 1.0, AA + k, 0, 0, DDInv + k * 3 - 1, 0,
               0, 0.0, LL + k * 3 - 1, 0, 0, LL + k * 3 - 1, 0, 0);
     }
     // L = B*DInv
-    GEMM_NN(nx[k + 1], nu[k], nu[k], 1.0, BB + k, 0, 0, DDInv + k * 3, 0, 0,
+    GEMM_NT(nx[k + 1], nu[k], nu[k], 1.0, BB + k, 0, 0, DDInv + k * 3, 0, 0,
             0.0, LL + k * 3, 0, 0, LL + k * 3, 0, 0);
 
     // D = B * L'
@@ -214,13 +222,14 @@ void factorizeOCPData() {
   }
 }
 
-int main() {
-  initOCPData();
-  // printOCPData();
+// int main() {
+//   initOCPData();
+//   printOCPData();
 
-  factorizeOCPData();
-  printWorkspace();
+//   factorizeOCPData();
 
-  freeOCPData();
-  return 0;
-}
+//   printWorkspace();
+
+//   freeOCPData();
+//   return 0;
+// }

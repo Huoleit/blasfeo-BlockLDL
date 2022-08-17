@@ -10,13 +10,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googlebenchmark)
 
-add_executable(BM_chole bench.cpp)
-
-target_link_libraries(BM_chole blasfeo m benchmark::benchmark_main)
+add_executable(BM_bdldl bench.cpp bdldl.c)
+target_link_libraries(BM_bdldl blasfeo m benchmark::benchmark_main)
 
 add_executable(bdldl bdldl.c)
 target_link_libraries(bdldl blasfeo m)
-target_compile_options(bdldl PRIVATE -g)
 
 add_executable(blasfeo_test test.c)
 target_link_libraries(blasfeo_test blasfeo m)
