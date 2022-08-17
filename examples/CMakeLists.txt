@@ -41,6 +41,9 @@ add_executable(example_d_lq_factorization example_d_lq_factorization.c)
 add_executable(example_d_riccati_recursion example_d_riccati_recursion.c tools.c)
 add_executable(example_s_riccati_recursion example_s_riccati_recursion.c tools.c)
 
+add_executable(example_d_chole_factorization example_d_chole_factorization.c)
+
+
 if(CMAKE_C_COMPILER_ID MATCHES MSVC) # no explicit math library and no running blas api (for now)
 
 	target_link_libraries(getting_started blasfeo)
@@ -58,6 +61,8 @@ else() # add explicit math library
 	target_link_libraries(example_d_lq_factorization blasfeo ${EXTERNAL_BLAS_LIBRARIES} m)
 	target_link_libraries(example_d_riccati_recursion blasfeo ${EXTERNAL_BLAS_LIBRARIES} m)
 	target_link_libraries(example_s_riccati_recursion blasfeo ${EXTERNAL_BLAS_LIBRARIES} m)
+
+	target_link_libraries(example_d_chole_factorization ${EXTERNAL_BLAS_LIBRARIES} blasfeo m)
 
 endif()
 
