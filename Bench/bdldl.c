@@ -29,6 +29,7 @@ ldl_matrix DD[3 * N];
 ldl_matrix DDInv[3 * N];
 
 ldl_matrix Ix, Iu, tmpLx, tmpLu;
+void* mem;
 
 void initOCPData() {
   int ii;
@@ -39,11 +40,25 @@ void initOCPData() {
     ng[ii] = NG;
   }
 
-  // for (ii = 0; ii < NX * NX; ++ii) A[ii] = ii % NX;
-  // for (ii = 0; ii < NX * NU; ++ii) B[ii] = ii / NX;
-  // for (ii = 0; ii < NX; ++ii) Q[(NX + 1) * ii] = 1.0;
-  // for (ii = 0; ii < NU; ++ii) R[(NU + 1) * ii] = 2.0;
+  //////////////////////////////////////////////////////////////////////////////
+  // Calculate memory size for the matrices
+  //////////////////////////////////////////////////////////////////////////////
+  size_t size = 0;
+  for (ii = 0; ii < N; ++ii) {
+    size += SIZE_STRMAT(nx[ii + 1], nu[ii]) * 2;      // B L_B
+    size += SIZE_STRMAT(nx[ii + 1], nx[ii]) * 2;      // A L_A
+    size += SIZE_STRMAT(nu[ii], nu[ii]);              // R
+    size += SIZE_STRMAT(nx[ii + 1], nx[ii + 1]) * 2;  // Q L_I
 
+    size += SIZE_STRMAT(nu[ii], nu[ii]) * 2;          // D_R DInv_R
+    size += SIZE_STRMAT(nx[ii + 1], nx[ii + 1]) * 2;  // D_B DInv_B
+    size += SIZE_STRMAT(nx[ii + 1], nx[ii + 1]) * 2;  // D_Q DInv_Q
+  }
+  blasfeo_malloc_align(&mem, size);
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Allocate auxiliary matrices internally
+  //////////////////////////////////////////////////////////////////////////////
   ALLOCATE_MAT(NX, NX, &Ix);
   GESE(NX, NX, 0, &Ix, 0, 0);
   DIARE(NX, 1.0, &Ix, 0, 0);
@@ -55,59 +70,63 @@ void initOCPData() {
   ALLOCATE_MAT(NX, NX, &tmpLx);
   ALLOCATE_MAT(NU, NU, &tmpLu);
 
+  /////////////////////////////////////////////////////////////////////////////
+  // Map working data to contiguous memory
+  //////////////////////////////////////////////////////////////////////////////
+  char* ptr = (char*)mem;
   for (ii = 0; ii < N; ++ii) {
-    ALLOCATE_MAT(nx[ii + 1], nx[ii], AA + ii);
+    CREATE_STRMAT(nx[ii + 1], nu[ii], BB + ii, ptr);  // B
+    PACK_MAT(nx[ii + 1], nu[ii], B, nx[ii + 1], BB + ii, 0, 0);
+    ptr += (BB + ii)->memsize;
+
+    CREATE_STRMAT(nx[ii + 1], nx[ii], AA + ii, ptr);
     PACK_MAT(nx[ii + 1], nx[ii], A, nx[ii + 1], AA + ii, 0, 0);  // A
+    ptr += (AA + ii)->memsize;
 
-    ALLOCATE_MAT(nx[ii + 1], nu[ii], BB + ii);
-    PACK_MAT(nx[ii + 1], nu[ii], B, nx[ii + 1], BB + ii, 0, 0);  // B
+    CREATE_STRMAT(nu[ii], nu[ii], RR + ii, ptr);  // R
+    PACK_MAT(nu[ii], nu[ii], R, nu[ii], RR + ii, 0, 0);
+    ptr += (RR + ii)->memsize;
 
-    ALLOCATE_MAT(nx[ii], nx[ii], QQ + ii);
-    PACK_MAT(nx[ii], nx[ii], Q, nx[ii], QQ + ii, 0, 0);  // Q
-
-    ALLOCATE_MAT(nu[ii], nu[ii], RR + ii);
-    PACK_MAT(nu[ii], nu[ii], R, nu[ii], RR + ii, 0, 0);  // R
-
-    if (ii != 0) ALLOCATE_MAT(nx[ii + 1], nx[ii], LL + ii * 3 - 1);  // L_A
-    ALLOCATE_MAT(nx[ii + 1], nu[ii], LL + ii * 3);                   // L_B
-    ALLOCATE_MAT(nx[ii + 1], nx[ii + 1], LL + ii * 3 + 1);           // L_I
-
-    ALLOCATE_MAT(nu[ii], nu[ii], DD + ii * 3);              // D_R
-    ALLOCATE_MAT(nx[ii + 1], nx[ii + 1], DD + ii * 3 + 1);  // D_B
-    ALLOCATE_MAT(nx[ii + 1], nx[ii + 1], DD + ii * 3 + 2);  // D_Q
-
-    ALLOCATE_MAT(nu[ii], nu[ii], DDInv + ii * 3);              // DInv_R
-    ALLOCATE_MAT(nx[ii + 1], nx[ii + 1], DDInv + ii * 3 + 1);  // DInv_B
-    ALLOCATE_MAT(nx[ii + 1], nx[ii + 1], DDInv + ii * 3 + 2);  // DInv_Q
+    CREATE_STRMAT(nx[ii], nx[ii], QQ + ii + 1, ptr);
+    PACK_MAT(nx[ii], nx[ii], Q, nx[ii], QQ + ii + 1, 0, 0);  // Q
+    ptr += (QQ + ii + 1)->memsize;
   }
-  ALLOCATE_MAT(nx[ii], nx[ii], QQ + ii);
-  PACK_MAT(nx[ii], nx[ii], Q, nx[ii], QQ + ii, 0, 0);  // Q_N
+
+  for (ii = 0; ii < N; ++ii) {
+    if (ii != 0) {
+      CREATE_STRMAT(nx[ii + 1], nx[ii], LL + ii * 3 - 1, ptr);  // L_A
+      ptr += (LL + ii * 3 - 1)->memsize;
+    }
+    CREATE_STRMAT(nx[ii + 1], nu[ii], LL + ii * 3, ptr);  // L_B
+    ptr += (LL + ii * 3)->memsize;
+
+    CREATE_STRMAT(nx[ii + 1], nx[ii + 1], LL + ii * 3 + 1, ptr);  // L_I
+    ptr += (LL + ii * 3 + 1)->memsize;
+
+    CREATE_STRMAT(nu[ii], nu[ii], DD + ii * 3, ptr);  // D_R
+    ptr += (DD + ii * 3)->memsize;
+    CREATE_STRMAT(nx[ii + 1], nx[ii + 1], DD + ii * 3 + 1, ptr);  // D_B
+    ptr += (DD + ii * 3 + 1)->memsize;
+    CREATE_STRMAT(nx[ii + 1], nx[ii + 1], DD + ii * 3 + 2, ptr);  // D_Q
+    ptr += (DD + ii * 3 + 2)->memsize;
+
+    CREATE_STRMAT(nu[ii], nu[ii], DDInv + ii * 3, ptr);  // DInv_R
+    ptr += (DDInv + ii * 3)->memsize;
+    CREATE_STRMAT(nx[ii + 1], nx[ii + 1], DDInv + ii * 3 + 1, ptr);  // DInv_B
+    ptr += (DDInv + ii * 3 + 1)->memsize;
+    CREATE_STRMAT(nx[ii + 1], nx[ii + 1], DDInv + ii * 3 + 2, ptr);  // DInv_Q
+    ptr += (DDInv + ii * 3 + 2)->memsize;
+  }
 }
 
 void freeOCPData() {
-  int ii;
-
-  for (ii = 0; ii < N; ++ii) {
-    FREE_MAT(AA + ii);
-    FREE_MAT(BB + ii);
-    FREE_MAT(QQ + ii);
-    FREE_MAT(RR + ii);
-  }
-  FREE_MAT(QQ + ii);
-
-  for (ii = 0; ii < 3 * N - 1; ++ii) {
-    FREE_MAT(LL + ii);
-    FREE_MAT(DD + ii);
-    FREE_MAT(DDInv + ii);
-  }
-  FREE_MAT(DD + ii);
-  FREE_MAT(DDInv + ii);
-
   FREE_MAT(&Ix);
   FREE_MAT(&Iu);
 
   FREE_MAT(&tmpLx);
   FREE_MAT(&tmpLu);
+
+  blasfeo_free_align(mem);
 }
 
 void printWorkspace() {
@@ -150,13 +169,14 @@ void printOCPData() {
     PRINT_MAT(nx[ii + 1], nx[ii], AA + ii, 0, 0);
     printf("B = \n");
     PRINT_MAT(nx[ii + 1], nu[ii], BB + ii, 0, 0);
-
-    printf("Q = \n");
-    PRINT_MAT(nx[ii], nx[ii], QQ + ii, 0, 0);
+    if (ii != 0) {
+      printf("Q = \n");
+      PRINT_MAT(nx[ii], nx[ii], QQ + ii, 0, 0);
+    }
     printf("R = \n");
     PRINT_MAT(nu[ii], nu[ii], RR + ii, 0, 0);
   }
-  printf("\nk = %d nx = %d\n", ii, nx[ii]);
+  printf("\nk = %d(Final) nx = %d\n", ii, nx[ii]);
   printf("Q = \n");
   PRINT_MAT(nx[ii], nx[ii], QQ + ii, 0, 0);
 
