@@ -11,10 +11,10 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googlebenchmark)
 
 add_executable(BM_bdldl bench.cpp bdldl.c)
-target_link_libraries(BM_bdldl blasfeo m benchmark::benchmark_main)
+target_link_libraries(BM_bdldl ${EXTERNAL_BLAS_LIBRARIES} blasfeo m benchmark::benchmark_main)
 
 add_executable(bdldl bdldl.c)
-target_link_libraries(bdldl blasfeo m)
+target_link_libraries(bdldl ${EXTERNAL_BLAS_LIBRARIES} blasfeo m)
 
 add_executable(blasfeo_test test.c)
-target_link_libraries(blasfeo_test blasfeo m)
+target_link_libraries(blasfeo_test ${EXTERNAL_BLAS_LIBRARIES} blasfeo m)
