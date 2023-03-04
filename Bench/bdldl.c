@@ -244,11 +244,17 @@ void factorizeOCPData() {
 
 // int main() {
 //   initOCPData();
-//   printOCPData();
+//   // printOCPData();
+//   blasfeo_timer timer;
+//   int nrep = 10000;
+//   blasfeo_tic(&timer);
+//   for (int i = 0; i < nrep; ++i) {
+//     factorizeOCPData();
+//   }
+//   double time_elapsed = blasfeo_toc(&timer) / (double)nrep;
+//   printf("Time %f [ms]\n", time_elapsed * 1e3);
 
-//   factorizeOCPData();
-
-//   printWorkspace();
+//   // printWorkspace();
 
 //   freeOCPData();
 //   return 0;
